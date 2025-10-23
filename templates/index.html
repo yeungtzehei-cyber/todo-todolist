@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>To-do list</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/gamify.js') }}" defer></script>
+</head>
+<body>
+    <h1>To-do list <span class="streak-flame">🔥{{ streak }}</span> | Level {{ level }} ({{ xp }} XP)</h1>
+    <div class="stats">
+        {{ total }} tasks | {{ done_count }} done ({{ "%.0f"|format(progress_pct) }}%) | {{ overdue_count }} overdue
+    </div>
+    <div class="daily-goal">
+        <h3>Daily Quest: Complete {{ daily_goal.target }} tasks ({{ daily_goal.completed }}/{{ daily_goal.target }})</h3>
+        {% if not daily_goal.active %}<p>Quest crushed! +1 streak bonus. New one tomorrow.</p>{% endif %}
+    </div>
+    <button id="freeze-btn" onclick="freezeStreak()">Freeze Streak (1 left)</button>
+   
+    <form method="POST" action="/add">
+        <input type="text" name="task" placeholder="Add a new task" required>
+        <input type="date" name="due">
+        <select name="priority">
+            <option value="low">Low</option>
+            <option value="med">Medium</option>
+            <option value="high">High</option>
+        </select>
+        <select name="category">
+            <option value="Personal">Personal</option>
+            <option value="Work">Work</option>
+            <option value="Other">Other</option>
+        </select>
+        <button type="submit">Add</button>
+    </form>
+    <form method="GET" action="/">
+        <input type="text" name="search" placeholder="Search tasks..." value="{{ request.args.get('search', '') }}">
+        <select name="sort">
+            <option value="all">All Tasks</option>
+            <option value="priority">Sort by Priority</option>
+            <option value="due">Sort by Due Date</option>
+        </select>
+        <select name="filter_category">
+            <option value="all">All Categories</option>
+            <option value="Personal">Personal</option>
+            <option value="Work">Work</option>
+            <option value="Other">Other</option>
+        </select>
+        <button type="submit">Filter/Sort</button>
+    </form>
+    <form method="POST" action="/clear" onsubmit="return confirm('Are you sure you want to clear all tasks?');">
+        <button type="submit" class="danger">Clear All</button>
+    </form>
+    <ul>
+        {% for task in todos %}
+            {% if loop.first or todos[loop.index0 - 1].category != task.category %}
+            <h3>{{ task.category.title() }}</h3>
+            {% endif %}
+        <li class="{% if task.done %}done{% endif %}{% if task.is_overdue %} overdue{% endif %} {% if task.priority %} {{ task.priority }}{% endif %}">
+            {% if editing and loop.index0 == edit_index %}
+            <div class="edit-form">
+                <input type="text" name="task" value="{{ task.text }}" required>
+                <input type="date" name="due" value="{{ task.due or '' }}">
+                <select name="priority">
+                    <option value="low" {% if task.priority == 'low' %}selected{% endif %}>Low</option>
+                    <option value="med" {% if task.priority == 'med' %}selected{% endif %}>Medium</option>
+                    <option value="high" {% if task.priority == 'high' %}selected{% endif %}>High</option>
+                </select>
+                <select name="category">
+                    <option value="Personal" {% if task.category == 'Personal' %}selected{% endif %}>Personal</option>
+                    <option value="Work" {% if task.category == 'Work' %}selected{% endif %}>Work</option>
+                    <option value="Other" {% if task.category == 'Other' %}selected{% endif %}>Other</option>
+                </select>
+                <button type="submit">Save</button>
+                <a href="/">Cancel</a>
+            </div>
+            {% else %}
+            <div class="task-details">
+                <span>{{ task.text }}</span>
+                {% if task.due %}<div class="task-meta">Due: {{ task.due }}</div>{% endif %}
+                {% if task.priority %}<div class="task-meta">Priority: {{ task.priority.title() }}</div>{% endif %}
+            </div>
+            <div>
+                <form method="POST" action="/toggle/{{ loop.index0 }}" style="display: inline; margin-right: 5px;">
+                    <button type="submit" class="toggle-btn" data-task="{{ loop.index0 }}">{% if task.done %}Undo{% else %}Done{% endif %}</button>
+                </form>
+                <form method="POST" action="/edit/{{ loop.index0 }}" style="display: inline;">
+                    <button type="submit" class="edit">Edit</button>
+                </form>
+            </div>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    <a href="/">Refresh</a>
+</body>
+</html>
